@@ -2298,7 +2298,7 @@ function updateSlackAppHome(userId) {
         type: 'section',
         text: {
           type: 'mrkdwn',
-          text: '*Need help or want a new room added?*\nPing <@' + (SLACK_CONFIG && SLACK_CONFIG.adminSlackId ? SLACK_CONFIG.adminSlackId : 'U08L2CVG29W') + '> or drop feedback in #cdmx-office.'
+          text: '*Need help or want a new room added?*\nPing <@' + (SLACK_CONFIG && SLACK_CONFIG.adminSlackId ? SLACK_CONFIG.adminSlackId : 'ADMIN_ID') + '> or contact your IT team.'
         }
       }
     ]
@@ -2334,6 +2334,12 @@ function updateSlackAppHome(userId) {
  * Helper to manually refresh the App Home for the workspace admin.
  * Run this from Apps Script to validate the layout without waiting for an event.
  */
-function refreshAppHomeForZab() {
-  updateSlackAppHome('U08L2CVG29W');
+function refreshAppHomeForAdmin() {
+  // Get admin ID from Script Properties
+  var adminId = PropertiesService.getScriptProperties().getProperty('SLACK_ADMIN_ID');
+  if (adminId) {
+    updateSlackAppHome(adminId);
+  } else {
+    console.error('SLACK_ADMIN_ID not configured in Script Properties');
+  }
 }
