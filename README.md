@@ -1,524 +1,129 @@
-# Apollo CDMX Room Booking System
+# Room Booking App
 
-A secure, scalable room booking application for Apollo CDMX offices, featuring:
-- 📅 Weekly grid view with drag-and-drop booking
-- 🤖 Slack bot integration for notifications and reminders
-- 📊 Real-time dashboard for availability
-- 🔒 Enterprise-grade security and PII protection
-- ⚡ Rate limiting and quota management
+A simple room booking system for Google Calendar with Slack notifications.
 
----
+## Features
 
-## 🚀 Quick Start
+- 📅 Weekly calendar grid view
+- 🔄 Drag-and-drop booking
+- 🤖 Slack bot reminders
+- 📊 Real-time availability dashboard
 
-### Prerequisites
+## Setup
 
-- Google Workspace account with Calendar API access
-- Slack workspace with bot token
-- Apps Script deployment permissions
-
-### Files Overview
-
-| File | Purpose |
-|------|---------|
-| **App.js** | Main backend logic for room booking |
-| **bot.js** | Slack integration and notifications |
-| **UI.html** | Frontend web interface |
-| **Config.js** | 🔒 Secure configuration management |
-| **Validation.js** | 🔒 Input validation and sanitization |
-| **Migration.js** | 🔒 One-time migration to secure config |
-| **SECURITY.md** | 🔒 Security guide and best practices |
-
----
-
-## 🔒 Security First
-
-This application has been **hardened for security** with the following improvements:
-
-### ✅ What's Secure Now
-
-- **No hardcoded credentials** - All sensitive data in Script Properties
-- **PII protection** - Email masking in logs
-- **Input validation** - Prevents injection attacks
-- **Rate limiting** - Protects against abuse
-- **Authorization checks** - User quotas and domain whitelisting
-- **Audit logging** - Sanitized activity logs
-
-### ⚠️ Before You Deploy
-
-**DO NOT deploy without completing these steps:**
-
-1. **Read [SECURITY.md](./SECURITY.md)** - Complete security guide
-2. **Run Migration.js** - Move secrets to Script Properties
-3. **Configure Script Properties** - Add your Slack token
-4. **Test with non-admin account** - Verify authorization works
-5. **Review logs** - Ensure no PII is exposed
-
----
-
-## 📦 Installation
-
-### Step 1: Set Up Apps Script Project
+### 1. Apps Script Project
 
 1. Go to [script.google.com](https://script.google.com)
-2. Create a new project: "Room Booking CDMX"
-3. Add all `.js` and `.html` files to the project
+2. Create new project
+3. Copy all `.js` and `.html` files
 
-### Step 2: Enable Required APIs
+### 2. Enable Google Calendar API
 
-1. In Apps Script Editor, click on "Services" (+)
-2. Add **Google Calendar API** (v3)
-3. Save
+1. Apps Script Editor → Services (+)
+2. Add **Google Calendar API**
 
-### Step 3: Run Security Migration
+### 3. Configure Script Properties
 
-1. Open `Migration.js` in the editor
-2. Run `migrateAllSecuritySettings()`
-3. Check execution log for success
-4. Go to **Project Settings → Script Properties**
-5. Update `SLACK_BOT_TOKEN` with your actual token
-
-### Step 4: Configure Room Calendars
-
-Edit `Config.js` → `getRoomConfiguration()`:
-
-```javascript
-calendars: {
-  A: 'your_room_a_calendar_id@resource.calendar.google.com',
-  B: 'your_room_b_calendar_id@resource.calendar.google.com',
-  // ...
-}
-```
-
-### Step 5: Deploy
-
-1. Click **Deploy → New deployment**
-2. Select **Web app**
-3. Settings:
-   - Execute as: **Me**
-   - Who has access: **Anyone within yourcompany.com**
-4. Click **Deploy**
-5. Copy the deployment URL
-6. Add to Script Properties: `WEB_APP_URL = <your_url>`
-
-### Step 6: Configure Slack
-
-1. Go to [api.slack.com/apps](https://api.slack.com/apps)
-2. Create or select your Slack app
-3. Add bot scopes:
-   - `chat:write`
-   - `chat:write.public`
-   - `im:write`
-   - `users:read`
-   - `users:read.email`
-4. Install app to workspace
-5. Copy Bot User OAuth Token
-6. Update Script Properties: `SLACK_BOT_TOKEN = xoxb-...`
-7. Set Event Subscriptions URL: `<your_deployment_url>?action=slack`
-
----
-
-## 🔐 Security Configuration
-
-### Script Properties Setup
-
-**Required Properties:**
+Project Settings → Script Properties → Add:
 
 ```
-SLACK_BOT_TOKEN          = xoxb-your-slack-bot-token
+SLACK_BOT_TOKEN          = xoxb-your-token
 SLACK_ADMIN_ID           = UXXXXXXXXXX
 SLACK_DEFAULT_CHANNEL    = CXXXXXXXXXX
-ADMIN_EMAILS             = admin1@yourcompany.com,admin2@yourcompany.com
-WEB_APP_URL              = https://script.google.com/a/macros/...
+WEB_APP_URL              = (will set after deploy)
 ```
 
-### Slack User Mappings
+### 4. Update Room Calendars
 
-Instead of hardcoding, use the migration script:
+Edit `App.js` lines 13-22:
 
 ```javascript
-// Run once in Apps Script
-function setupMyTeam() {
-  var mappings = {
-    'user1@yourcompany.com': 'U12345678',
-    'user2@yourcompany.com': 'U87654321'
-  };
-  importSlackUserMappings(mappings);
-}
+const ROOM_CALENDARS = {
+  A: 'your_room_calendar_id@resource.calendar.google.com',
+  // ... add your rooms
+};
 ```
 
-### Access Control
+### 5. Deploy
 
-Edit `Config.js` → `validateUserAuthorization()`:
+1. Deploy → New deployment → Web app
+2. Execute as: **Me**
+3. Access: **Anyone within yourcompany.com**
+4. Copy URL and add to Script Properties as `WEB_APP_URL`
 
-```javascript
-var allowedDomains = ['yourcompany.com', 'partner-company.com'];
-var MAX_BOOKINGS_PER_DAY = 5; // Customize quota
-```
+### 6. Slack Integration
 
----
+1. Create Slack app at [api.slack.com/apps](https://api.slack.com/apps)
+2. Add bot scopes: `chat:write`, `im:write`, `users:read`
+3. Install to workspace
+4. Copy Bot Token to Script Properties
 
-## 🎯 Features
+### 7. Set up Triggers
 
-### 1. Weekly Grid View
+Apps Script → Triggers → Add:
 
-- Drag to select time slots
-- Resize bookings
-- Color-coded availability
-- Quick suggestions
+- `remindUpcomingBookings` - Every 1 minute
+- `remindEndingBookings` - Every 1 minute
+- `sendDailyDigest` - Daily at 8:00 AM
+- `notifyRecentRoomBookings` - Every 1 minute
 
-### 2. Slack Integration
+## Files
 
-**Automated Notifications:**
-- ⏰ Reminder 15 min before meeting starts
-- 🏁 Reminder 10 min before meeting ends
-- ☀️ Daily digest at 8:00 AM
-- ✅ Booking confirmation DMs
+- `App.js` - Main backend logic
+- `bot.js` - Slack integration
+- `UI.html` - Frontend interface
+- `bot-home.html` - Slack app home
 
-**Commands:**
-- `/rooms` - Open booking interface (if configured)
-
-### 3. Smart Suggestions
-
-- Auto-detects personal calendar events without rooms
-- Suggests available rooms for upcoming meetings
-- One-click room assignment
-
-### 4. Dashboard
-
-- Real-time availability across all rooms
-- Today's bookings at a glance
-- Auto-refresh every 30 seconds
-
----
-
-## 🛡️ Security Features
-
-### Input Validation
-
-All user inputs are validated:
-
-```javascript
-var validation = validateRequest('bookRoom', payload, userEmail);
-if (!validation.valid) {
-  throw new Error(validation.errors.join(', '));
-}
-```
-
-**Protections:**
-- ✅ Email format (RFC 5322 compliant)
-- ✅ Max title length (255 chars)
-- ✅ XSS prevention
-- ✅ SQL injection prevention (N/A for this app)
-- ✅ Duration limits (15 min - 8 hours)
-- ✅ Past date rejection
-
-### Authorization
-
-```javascript
-// Domain whitelist
-var allowedDomains = ['yourcompany.com'];
-
-// Quota enforcement
-MAX_BOOKINGS_PER_DAY = 5;
-
-// Admin-only functions
-if (!isAdmin(userEmail)) {
-  throw new Error('Unauthorized');
-}
-```
-
-### PII Protection
-
-```javascript
-// Before
-console.log('User: john.doe@yourcompany.com');
-
-// After
-console.log('User: ' + maskEmail('john.doe@yourcompany.com'));
-// Output: "User: jo***e@yourcompany.com"
-```
-
-### Rate Limiting
-
-```javascript
-var limit = checkRateLimit('user:' + email, 10, 60);
-if (!limit.allowed) {
-  throw new Error('Rate limit exceeded');
-}
-```
-
----
-
-## 📊 Scalability
-
-### Current Limits
-
-| Resource | Limit | Impact |
-|----------|-------|--------|
-| Script Properties | 50 KB | Booking state storage |
-| Calendar API | 1M queries/day | 10k-100k users supported |
-| Slack API | 1 msg/sec | Sequential DM sending |
-| Cache | 10 MB | Slack user ID cache |
-
-### Scaling Recommendations
-
-**For 100+ users:**
-1. Migrate booking state from Script Properties to **Firestore**
-2. Implement batch Calendar API requests
-3. Add Redis/Memcache layer for Slack user IDs
-4. Use Pub/Sub for async Slack notifications
-
-**For multiple offices:**
-1. Make room configuration dynamic (database-backed)
-2. Add office selector to UI
-3. Implement location-based authorization
-
-**For enterprise:**
-1. Migrate to standalone Node.js service
-2. Use Google Cloud Secret Manager
-3. Implement OAuth 2.0 for API access
-4. Add comprehensive audit logging to BigQuery
-
----
-
-## 🧪 Testing
-
-### Run Tests
-
-```javascript
-// In Apps Script Editor
-
-// Test secure config
-function testConfig() {
-  var config = getSecureConfig();
-  console.log('Config loaded:', config.slack.adminId);
-}
-
-// Test validation
-function testValidation() {
-  var result = validateBookingPayload({
-    room: 'A',
-    title: 'Test Meeting',
-    startISO: '2026-01-21T10:00:00',
-    endISO: '2026-01-21T11:00:00'
-  });
-  console.log('Validation:', result);
-}
-
-// Test Slack lookup
-function testSlackLookup() {
-  var slackId = getSlackUserMapping('your.email@yourcompany.com');
-  console.log('Slack ID:', slackId);
-}
-```
-
-### Manual Testing Checklist
-
-- [ ] Book a room as normal user
-- [ ] Book a room as admin
-- [ ] Try booking without authentication
-- [ ] Test daily quota limit (book 6 times)
-- [ ] Cancel a booking
-- [ ] Assign room to existing event
-- [ ] Check Slack notifications arrive
-- [ ] Verify no PII in execution logs
-- [ ] Test with invalid inputs (XSS, injection)
-
----
-
-## 📝 Usage
-
-### Booking a Room
-
-1. Open the web app URL
-2. Navigate to desired week
-3. Click and drag on a room row to select time
-4. Fill in meeting details
-5. Click "Book Room"
-6. Receive Slack confirmation
-
-### Assigning Room to Existing Event
-
-1. View "Room Suggestions" tab
-2. Click "Assign" next to your event
-3. Select available room
-4. Receive updated calendar invite
-
-### Canceling a Booking
-
-1. Go to "Your Bookings" tab
-2. Find your booking
-3. Click "Cancel"
-4. Confirm cancellation
-
----
-
-## 🔧 Configuration
+## Configuration
 
 ### Work Hours
 
-Edit `Config.js`:
+Edit `App.js`:
 
 ```javascript
-workHours: {
-  start: 6,  // 6:00 AM
-  end: 17,   // 5:00 PM
-  timezone: Session.getScriptTimeZone()
-}
+const WORK_START = 6;   // 06:00
+const WORK_END = 17;    // 17:00
 ```
 
-### Notification Timing
+### Slack User Mapping
 
-Edit `bot.js` (search for these values):
+Store in Script Properties:
 
 ```javascript
-REMINDER_BEFORE_MINUTES = 15;  // Start reminder
-REMINDER_ENDING_MINUTES = 10;  // Ending reminder
-DIGEST_HOUR = 8;               // Daily digest time
+// One-time setup
+PropertiesService.getScriptProperties()
+  .setProperty('SLACK_USER_MAP_user@company.com', 'UXXXXXXXXXX');
 ```
 
-### Slack Channels
+## Usage
 
-Edit Script Properties:
+### Book a Room
 
-```
-SLACK_DEFAULT_CHANNEL = CXXXXXXXXXX  // Default notification channel
-SLACK_ADMIN_ID = UXXXXXXXXXX         // Admin user for alerts
-```
+1. Open web app URL
+2. Click and drag on calendar
+3. Fill meeting details
+4. Submit
 
----
+### Slack Notifications
 
-## 🐛 Troubleshooting
+- ⏰ 15 min before meeting starts
+- 🏁 10 min before meeting ends
+- ☀️ Daily digest at 8:00 AM
 
-### "SLACK_BOT_TOKEN not configured"
+## Troubleshooting
 
-**Fix:** Add token to Script Properties
-1. Project Settings → Script Properties
-2. Add property: `SLACK_BOT_TOKEN = xoxb-...`
+**Slack not working?**
+- Check `SLACK_BOT_TOKEN` in Script Properties
+- Verify bot has required scopes
 
-### Slack notifications not arriving
+**Calendar not loading?**
+- Check Calendar API quota
+- Verify calendar sharing permissions
 
-**Checklist:**
-- [ ] Bot token is valid (test in Slack API console)
-- [ ] Bot has `chat:write` and `im:write` scopes
-- [ ] User Slack ID is in Script Properties
-- [ ] Run `testSlackLookup()` to verify mapping
+## License
 
-### "Rate limit exceeded"
+Internal use only
 
-**Cause:** Too many API calls
-**Fix:** Wait 60 seconds and try again
-**Prevention:** Implement caching for week grid queries
+## Contact
 
-### Bookings appear delayed
-
-**Cause:** Calendar API propagation delay
-**Fix:** Wait 5-10 seconds and refresh
-**Prevention:** Add optimistic UI updates
-
-### Can't book room (always says "conflict")
-
-**Checklist:**
-- [ ] Check Calendar API quota (Cloud Console)
-- [ ] Verify calendar sharing with service account
-- [ ] Test calendar access: `Calendar.Events.list(calendarId, {})`
-- [ ] Check for existing events in time slot
-
----
-
-## 📈 Monitoring
-
-### View Execution Logs
-
-1. Apps Script Editor → Executions
-2. Filter by time range
-3. Look for errors or warnings
-4. Check execution duration (should be < 10s)
-
-### Monitor API Quota
-
-1. [Google Cloud Console](https://console.cloud.google.com)
-2. APIs & Services → Quotas
-3. Search "Calendar API"
-4. Monitor queries per day
-
-### Slack Activity
-
-Admin user receives DMs for all booking activity:
-- ✅ Booking created
-- ❌ Booking cancelled
-- ⚠️ Quota exceeded
-- 🤖 Bot errors
-
----
-
-## 🤝 Contributing
-
-### Code Style
-
-- Use `var` (not `let`/`const`) for Apps Script compatibility
-- Prefer `function` declarations over arrow functions
-- Add JSDoc comments for all functions
-- Run validation on all user inputs
-
-### Security Guidelines
-
-- **NEVER** commit tokens, passwords, or PII
-- **ALWAYS** use `maskEmail()` when logging emails
-- **VALIDATE** all inputs with `Validation.js` functions
-- **SANITIZE** all outputs with `sanitizeForLog()`
-- **TEST** with non-admin account
-
-### Pull Request Checklist
-
-- [ ] All hardcoded secrets removed
-- [ ] Input validation added
-- [ ] Logging sanitized
-- [ ] Tests pass
-- [ ] SECURITY.md updated (if security-related)
-- [ ] No PII in commit messages
-
----
-
-## 📄 License
-
-Internal use only - Apollo CDMX
-
----
-
-## 👤 Contact
-
-**Maintainer:** Your Team
-- Email: admin@yourcompany.com
-
-**Support:**
-- IT Team: it@yourcompany.com
-- Security: security@yourcompany.com
-
----
-
-## 🗺️ Roadmap
-
-### v2.1 (Q1 2026)
-- [ ] Migrate to Firestore for booking state
-- [ ] Add OAuth 2.0 authentication
-- [ ] Implement API rate limiting middleware
-- [ ] Add analytics dashboard
-
-### v2.2 (Q2 2026)
-- [ ] Multi-office support
-- [ ] Room equipment tracking
-- [ ] QR code check-in
-- [ ] Meeting room displays integration
-
-### v3.0 (Q3 2026)
-- [ ] Migrate to standalone Node.js service
-- [ ] Mobile app (React Native)
-- [ ] AI-powered room recommendations
-- [ ] Integration with MS Teams
-
----
-
-**Last Updated:** January 2026
-**Version:** 2.0.0 (Security Hardened)
+For issues or questions, contact your IT team.
