@@ -1,5 +1,5 @@
 /** @OnlyCurrentDoc
- * Apollo CDMX Room Booking
+ * Room Booking App
  * -----------------------------------------
  * - Weekly grid with drag, resize, and quick suggestions
  * - Requires the "Calendar" Advanced Google Service
@@ -10,26 +10,19 @@
 // Configuration
 //////////////////////
 
+// Replace these with your actual room calendar IDs
 const ROOM_CALENDARS = {
-  A:   'c_18889q127018oil7n02qvmoft5iue@resource.calendar.google.com', // Room Ajolote
-  B:   'c_1883ad9vmfh8ghfol6ns8kkf5bgfa@resource.calendar.google.com', // Room B
-  C:   'c_1886fv8a851baj3iit4idtqn4ag6k@resource.calendar.google.com', // Room Balam
-  D:   'c_188bb89qo6f88hn1kkugivigcsfd2@resource.calendar.google.com', // Room Calupoh
-  E:   'c_1885btid5mpogg5gl176a8rscph3m@resource.calendar.google.com', // Room Xolo - 9th Floor
-  PB1: 'c_1883fqhsm6floisrj0r0fcqmkclee@resource.calendar.google.com', // Phone Booth 1 - Cenzontle
-  PB2: 'c_188a5bts7c3pagcdnugjotg5nk6u8@resource.calendar.google.com', // Phone Booth 2 - Tecolote
-  PB3: 'c_188bnkchjldt2hhmjnvn6f56a2moi@resource.calendar.google.com'  // Phone Booth 3 - Quetzal
+  A:   'YOUR_ROOM_A_CALENDAR_ID@resource.calendar.google.com',
+  B:   'YOUR_ROOM_B_CALENDAR_ID@resource.calendar.google.com',
+  C:   'YOUR_ROOM_C_CALENDAR_ID@resource.calendar.google.com'
+  // Add more rooms as needed
 };
 
 const ROOM_LABELS = {
-  A:   'Room Ajolote · 4 people',
-  B:   'Room B · 4 people',
-  C:   'Room Balam · 9 people',
-  D:   'Room Calupoh · 10 people',
-  E:   'Room Xolo (9th Floor) · 30 people',
-  PB1: 'Phone Booth Cenzontle',
-  PB2: 'Phone Booth Tecolote',
-  PB3: 'Phone Booth Quetzal'
+  A:   'Room A · 4 people',
+  B:   'Room B · 6 people',
+  C:   'Room C · 10 people'
+  // Match the keys from ROOM_CALENDARS above
 };
 
 const CALENDAR_ID_TO_ROOM = Object.keys(ROOM_CALENDARS).reduce(function(map, key) {

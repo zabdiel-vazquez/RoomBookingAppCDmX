@@ -35,12 +35,19 @@ WEB_APP_URL              = (will set after deploy)
 
 ### 4. Update Room Calendars
 
-Edit `App.js` lines 13-22:
+Edit `App.js` - Replace placeholder IDs with your actual room calendar IDs:
 
 ```javascript
 const ROOM_CALENDARS = {
-  A: 'your_room_calendar_id@resource.calendar.google.com',
-  // ... add your rooms
+  A: 'c_xxxxx@resource.calendar.google.com',
+  B: 'c_yyyyy@resource.calendar.google.com'
+  // Add your rooms
+};
+
+const ROOM_LABELS = {
+  A: 'Conference Room A · 4 people',
+  B: 'Conference Room B · 8 people'
+  // Match your rooms
 };
 ```
 
