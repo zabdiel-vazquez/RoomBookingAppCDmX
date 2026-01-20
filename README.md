@@ -96,7 +96,7 @@ calendars: {
 2. Select **Web app**
 3. Settings:
    - Execute as: **Me**
-   - Who has access: **Anyone within apollo.io**
+   - Who has access: **Anyone within yourcompany.com**
 4. Click **Deploy**
 5. Copy the deployment URL
 6. Add to Script Properties: `WEB_APP_URL = <your_url>`
@@ -126,9 +126,9 @@ calendars: {
 
 ```
 SLACK_BOT_TOKEN          = xoxb-your-slack-bot-token
-SLACK_ADMIN_ID           = U08L2CVG29W
-SLACK_DEFAULT_CHANNEL    = C09GZJSPDV4
-ADMIN_EMAILS             = admin1@apollo.io,admin2@apollo.io
+SLACK_ADMIN_ID           = UXXXXXXXXXX
+SLACK_DEFAULT_CHANNEL    = CXXXXXXXXXX
+ADMIN_EMAILS             = admin1@yourcompany.com,admin2@yourcompany.com
 WEB_APP_URL              = https://script.google.com/a/macros/...
 ```
 
@@ -140,8 +140,8 @@ Instead of hardcoding, use the migration script:
 // Run once in Apps Script
 function setupMyTeam() {
   var mappings = {
-    'user1@apollo.io': 'U12345678',
-    'user2@apollo.io': 'U87654321'
+    'user1@yourcompany.com': 'U12345678',
+    'user2@yourcompany.com': 'U87654321'
   };
   importSlackUserMappings(mappings);
 }
@@ -152,7 +152,7 @@ function setupMyTeam() {
 Edit `Config.js` → `validateUserAuthorization()`:
 
 ```javascript
-var allowedDomains = ['apollo.io', 'partner-company.com'];
+var allowedDomains = ['yourcompany.com', 'partner-company.com'];
 var MAX_BOOKINGS_PER_DAY = 5; // Customize quota
 ```
 
@@ -217,7 +217,7 @@ if (!validation.valid) {
 
 ```javascript
 // Domain whitelist
-var allowedDomains = ['apollo.io'];
+var allowedDomains = ['yourcompany.com'];
 
 // Quota enforcement
 MAX_BOOKINGS_PER_DAY = 5;
@@ -232,11 +232,11 @@ if (!isAdmin(userEmail)) {
 
 ```javascript
 // Before
-console.log('User: john.doe@apollo.io');
+console.log('User: john.doe@yourcompany.com');
 
 // After
-console.log('User: ' + maskEmail('john.doe@apollo.io'));
-// Output: "User: jo***e@apollo.io"
+console.log('User: ' + maskEmail('john.doe@yourcompany.com'));
+// Output: "User: jo***e@yourcompany.com"
 ```
 
 ### Rate Limiting
@@ -308,7 +308,7 @@ function testValidation() {
 
 // Test Slack lookup
 function testSlackLookup() {
-  var slackId = getSlackUserMapping('your.email@apollo.io');
+  var slackId = getSlackUserMapping('your.email@yourcompany.com');
   console.log('Slack ID:', slackId);
 }
 ```
@@ -383,8 +383,8 @@ DIGEST_HOUR = 8;               // Daily digest time
 Edit Script Properties:
 
 ```
-SLACK_DEFAULT_CHANNEL = C09GZJSPDV4  // Default notification channel
-SLACK_ADMIN_ID = U08L2CVG29W         // Admin user for alerts
+SLACK_DEFAULT_CHANNEL = CXXXXXXXXXX  // Default notification channel
+SLACK_ADMIN_ID = UXXXXXXXXXX         // Admin user for alerts
 ```
 
 ---
@@ -489,13 +489,12 @@ Internal use only - Apollo CDMX
 
 ## 👤 Contact
 
-**Maintainer:** Zabdiel Vazquez
-- Email: zabdiel.vazquez@apollo.io
-- Slack: @Zabdiel
+**Maintainer:** Your Team
+- Email: admin@yourcompany.com
 
 **Support:**
-- IT Team: it@apollo.io
-- Security: security@apollo.io
+- IT Team: it@yourcompany.com
+- Security: security@yourcompany.com
 
 ---
 

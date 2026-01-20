@@ -38,9 +38,9 @@ var token = config.slack.botToken;
    | Property Name | Description | Example |
    |--------------|-------------|---------|
    | `SLACK_BOT_TOKEN` | Your Slack bot OAuth token | `xoxb-...` |
-   | `SLACK_ADMIN_ID` | Admin Slack user ID | `U08L2CVG29W` |
-   | `SLACK_DEFAULT_CHANNEL` | Default notification channel | `C09GZJSPDV4` |
-   | `ADMIN_EMAILS` | Comma-separated admin emails | `admin@apollo.io,it@apollo.io` |
+   | `SLACK_ADMIN_ID` | Admin Slack user ID | `UXXXXXXXXXX` |
+   | `SLACK_DEFAULT_CHANNEL` | Default notification channel | `CXXXXXXXXXX` |
+   | `ADMIN_EMAILS` | Comma-separated admin emails | `admin@yourcompany.com,it@yourcompany.com` |
 
 3. **Import Slack User Mappings**
    - Instead of hardcoding, run the import function:
@@ -49,8 +49,8 @@ var token = config.slack.botToken;
    function setupSlackMappings() {
      // One-time import of user mappings
      var mappings = {
-       'john.doe@apollo.io': 'U12345678',
-       'jane.smith@apollo.io': 'U87654321'
+       'user1@yourcompany.com': 'UXXXXXXXXXX',
+       'user2@yourcompany.com': 'UXXXXXXXXXX'
        // Add all users here
      };
 
@@ -449,9 +449,9 @@ A: Yes, but you need to make room configuration dynamic (currently hardcoded)
 ## Support
 
 For security concerns or questions:
-- Contact IT Security: it@apollo.io
-- Report vulnerabilities: security@apollo.io
-- General questions: zabdiel.vazquez@apollo.io
+- Contact IT Security: it@yourcompany.com
+- Report vulnerabilities: security@yourcompany.com
+- General questions: admin@yourcompany.com
 
 **Last Updated:** January 2026
 **Version:** 2.0 (Security Hardened)

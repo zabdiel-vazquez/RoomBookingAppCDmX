@@ -14,7 +14,7 @@ Tu aplicación de Room Booking ahora es **enterprise-grade** con las siguientes 
 **Antes (INSEGURO ❌):**
 ```javascript
 const SLACK_BOT_TOKEN = 'xoxb-1234-5678-abcd';  // Hardcoded!
-const ADMIN_ID = 'U08L2CVG29W';  // Exposed!
+const ADMIN_ID = 'UXXXXXXXXXX';  // Exposed!
 ```
 
 **Ahora (SEGURO ✅):**
@@ -62,24 +62,24 @@ if (!validation.valid) {
 #### Email Masking
 ```javascript
 // Antes
-console.log('User: john.doe@apollo.io');
+console.log('User: john.doe@yourcompany.com');
 
 // Ahora
-console.log('User: ' + maskEmail('john.doe@apollo.io'));
-// Output: "User: jo***e@apollo.io"
+console.log('User: ' + maskEmail('john.doe@yourcompany.com'));
+// Output: "User: jo***e@yourcompany.com"
 ```
 
 #### Sanitized Logging
 ```javascript
 var bookingData = {
-  email: 'john@apollo.io',
+  email: 'john@yourcompany.com',
   title: 'Confidential: M&A Discussion',
   token: 'xoxb-secret'
 };
 
 var sanitized = sanitizeForLog(bookingData);
 // {
-//   email: 'jo***n@apollo.io',
+//   email: 'jo***n@yourcompany.com',
 //   title: 'Confidential: M&A Discus...',
 //   token: '[REDACTED]'
 // }
@@ -92,8 +92,8 @@ var sanitized = sanitizeForLog(bookingData);
 
 #### Domain Whitelist
 ```javascript
-var allowedDomains = ['apollo.io'];
-// Solo usuarios @apollo.io pueden acceder
+var allowedDomains = ['yourcompany.com'];
+// Solo usuarios @yourcompany.com pueden acceder
 ```
 
 #### User Quotas
@@ -319,7 +319,7 @@ AFTER:   ████████░░ 85/100  (ENTERPRISE-READY)
 4. **Deploy** (5 min)
    - Deploy → New deployment → Web app
    - Execute as: Me
-   - Access: Anyone within apollo.io
+   - Access: Anyone within yourcompany.com
 
 5. **Monitor** (Ongoing)
    - Check execution logs daily
@@ -380,7 +380,7 @@ UI.html             → Frontend (unchanged, inherits security)
 2. Check `SECURITY.md` → FAQ section
 3. Run verification: `verifyMigration()`
 4. Check execution logs in Apps Script
-5. Contact: zabdiel.vazquez@apollo.io
+5. Contact: zabdiel.vazquez@yourcompany.com
 
 **Emergency rollback:**
 ```javascript
