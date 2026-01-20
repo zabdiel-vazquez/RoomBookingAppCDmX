@@ -133,4 +133,4 @@ Internal use only
 
 ## Contact
 
-For issues or questions, contact your IT team.
+For issues or questions, contact your Zab.
