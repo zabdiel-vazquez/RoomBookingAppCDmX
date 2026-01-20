@@ -11,74 +11,64 @@
  *    - remindEndingBookings: Every 1 minute
  */
 
+// ========================================
+// SECURITY WARNING
+// ========================================
+// DO NOT hardcode sensitive information here!
+// All credentials, IDs, and user mappings should be stored in Script Properties.
+//
+// Setup Instructions:
+// 1. Go to Apps Script Editor > Project Settings > Script Properties
+// 2. Add the following properties:
+//    - SLACK_BOT_TOKEN: Your Slack bot token
+//    - SLACK_ADMIN_ID: Admin Slack user ID
+//    - SLACK_DEFAULT_CHANNEL: Default channel ID
+//    - WEB_APP_URL: Your deployed web app URL
+//
+// 3. For Slack user mappings, use Config.js functions:
+//    - importSlackUserMappings({ 'user@company.com': 'UXXXXXXXXXX', ... })
+//    - This stores mappings securely in Script Properties
+//
+// See Config.js and Migration.js for secure configuration management.
+// ========================================
+
 // Global container to avoid redeclaration across script files
 this.RoomBotGlobals = this.RoomBotGlobals || {
   SLACK_CONFIG: {
     reminderMinutesBefore: 5,
     endReminderMinutesBefore: 5,
-    defaultChannel: 'C09GZJSPDV4', // channel ID fallback
+    // DO NOT hardcode channel IDs - use Script Properties
+    defaultChannel: PropertiesService.getScriptProperties().getProperty('SLACK_DEFAULT_CHANNEL') || '',
     botName: 'Room Booking Bot',
     startIcon: ':calendar:',
     endIcon: ':hourglass_flowing_sand:',
-    bookingAppUrl: 'https://script.google.com/a/macros/apollo.io/s/AKfycby2efMhcbTfnVEN7fUR2wLzcn0FpYvxXGvssmxVhBM63P7Cs-oVsA1ojwcoUhiMK_yXAg/exec', // set to your Room Booking web app URL
-    adminSlackId: 'U08L2CVG29W' // Zabdiel
+    // DO NOT hardcode URLs - use Script Properties
+    bookingAppUrl: PropertiesService.getScriptProperties().getProperty('WEB_APP_URL') || '',
+    // DO NOT hardcode admin IDs - use Script Properties
+    adminSlackId: PropertiesService.getScriptProperties().getProperty('SLACK_ADMIN_ID') || ''
   },
   OFFICE_HOURS: {
     startHour: 6,
     endHour: 17
   },
+  // ========================================
+  // DEPRECATED: DEFAULT_SLACK_USER_OVERRIDES
+  // ========================================
+  // This object is DEPRECATED and should NOT be used.
+  // User mappings should be stored in Script Properties using Config.js functions.
+  //
+  // Migration instructions:
+  // 1. Add Config.js and Migration.js to your project
+  // 2. Run migrateAllSecuritySettings() once
+  // 3. This will move all user mappings to Script Properties
+  // 4. Update this code to use getSlackUserMapping(email) instead
+  //
+  // DO NOT add new entries here!
+  // ========================================
   DEFAULT_SLACK_USER_OVERRIDES: {
-  'savvy@apollo.io': 'U020NN8Q1GU',
-  'juan.nieto@apollo.io': 'U09BNNPR32R',
-  'erika.barrios@apollo.io': 'U08RNAQBK60',
-  'alvaro.cabrera@apollo.io': 'U09G55MB3MX',
-  'lupita.garcia@apollo.io': 'U092J6KJT6G',
-  'erika.neyra@apollo.io': 'U092J6MHNVA',
-  'sacbe.ibarra@apollo.io': 'U08LY1SF2MS',
-  'jose.mondragon@apollo.io': 'U09C64UFD1Q',
-  'emilio.obeso@apollo.io': 'U08GEF0795K',
-  'luis.diaz@apollo.io': 'U08TKUW5PKQ',
-  'sasha.suarez@apollo.io': 'U0962K96SDQ',
-  'barush.cruz@apollo.io': 'U08NYPX2DBM',
-  'ivan.nunezdelapena@apollo.io': 'U0988EBPDCH',
-  'emilio.tolentino@apollo.io': 'U08PHTTEW64',
-  'ana.mejia@apollo.io': 'U090T1X9XB3',
-  'alejandra.aguilera@apollo.io': 'U098UE1UW6S',
-  'liliana.garza@apollo.io': 'U092J6R9QTW',
-  'zabdiel.vazquez@apollo.io': 'U08L2CVG29W',
-  'maria.arguedas@apollo.io': 'U08VBLDRMSS',
-  'abril.lopez@apollo.io': 'U093LE1F8RJ',
-  'alan.jimenez@apollo.io': 'U09C3AWH2TW',
-  'alan.serrano@apollo.io': 'U08NYPSBTH9',
-  'alberto.batiz@apollo.io': 'U08UXB35EKU',
-  'hector.rosas@apollo.io': 'U08UDLY2QJK',
-  'alejandro.aguilar@apollo.io': 'U08NYPX51AP',
-  'alejandro.arriaga@apollo.io': 'U090T2179EV',
-  'alejandro.corona@apollo.io': 'U08RNADF936',
-  'alicia.antunez@apollo.io': 'U09C1HEGPL6',
-  'anaid.sansinena@apollo.io': 'U090T22QD7B',
-  'andrea.gonzalez@apollo.io': 'U08VBLAE030',
-  'arturo.sanchez@apollo.io': 'U09AL5JQE13',
-  'aylen.estevez@apollo.io': 'U092JBFQ7MX',
-  'brenda.melo@apollo.io': 'U09BNNKFPHB',
-  'carlos.mata@apollo.io': 'U08L2E9SAPJ',
-  'carlos.delavilla@apollo.io': 'U08NYPW6VPV',
-  'claudia.espinosa@apollo.io': 'U092EKC6D37',
-  'cristian.rico@apollo.io': 'U08UDM4K2RM',
-  'dani.zenteno@apollo.io': 'U08UXB19JHG',
-  'daniel.ruiz@apollo.io': 'U08NYPQRX3M',
-  'daniela.altamirano@apollo.io': 'U092J6R7L3W',
-  'diego.guzman@apollo.io': 'U08THP9PK35',
-  'emmanuel.sandoval@apollo.io': 'U092J6R4TQU',
-  'enrique.sampedro@apollo.io': 'U0908J439D4',
-  'eric.delavega@apollo.io': 'U08UDLZMCJ3',
-  'erwin.chavez@apollo.io': 'U08UXAXPWF4',
-  'fernanda.gonzalez@apollo.io': 'U0908J28RML',
-  'fernando.vazquez@apollo.io': 'U08NYPTLHR9',
-  'fernando.antunez@apollo.io': 'U092J6R8KK6',
-  'arlette.estrada@apollo.io': 'U09AA1Q9877',
-  'gerardo.quintana@apollo.io': 'U08NYPUAAGK',
-  'gustavo.cabrera@apollo.io': 'U08UXB2Q22E'
+    // REMOVED FOR SECURITY
+    // Use getSlackUserMapping(email) from Config.js instead
+    // Example: var slackId = getSlackUserMapping('user@company.com');
   }
 };
 
@@ -1283,14 +1273,14 @@ function reportUnbookedRoomUsage(payload, occupantEmail, note, occupantSlackId) 
 function debugReportUnbookedRoomUsage() {
   return reportUnbookedRoomUsage({
     room: 'A',
-    occupantEmail: 'example@apollo.io',
+    occupantEmail: 'example@yourcompany.com',
     occupantSlackId: 'U000000000',
     note: 'Demo trigger from debug function'
   });
 }
 
 function reportUnbookedRoomA() {
-  var occupantEmail = 'replace_with_email@apollo.io';
+  var occupantEmail = 'replace_with_email@yourcompany.com';
   var occupantSlackId = 'U000000000'; // replace with Slack ID
   return reportUnbookedRoomUsage({
     room: 'A',
@@ -1300,7 +1290,7 @@ function reportUnbookedRoomA() {
 }
 
 function reportUnbookedRoomB() {
-  var occupantEmail = 'replace_with_email@apollo.io';
+  var occupantEmail = 'replace_with_email@yourcompany.com';
   var occupantSlackId = 'U000000000'; // replace with Slack ID
   return reportUnbookedRoomUsage({
     room: 'B',
@@ -1310,7 +1300,7 @@ function reportUnbookedRoomB() {
 }
 
 function reportUnbookedRoomC() {
-  var occupantEmail = 'replace_with_email@apollo.io';
+  var occupantEmail = 'replace_with_email@yourcompany.com';
   var occupantSlackId = 'U000000000'; // replace with Slack ID
   return reportUnbookedRoomUsage({
     room: 'C',
@@ -1320,7 +1310,7 @@ function reportUnbookedRoomC() {
 }
 
 function reportUnbookedRoomD() {
-  var occupantEmail = 'replace_with_email@apollo.io';
+  var occupantEmail = 'replace_with_email@yourcompany.com';
   var occupantSlackId = 'U000000000'; // replace with Slack ID
   return reportUnbookedRoomUsage({
     room: 'D',
@@ -1330,7 +1320,7 @@ function reportUnbookedRoomD() {
 }
 
 function reportUnbookedRoomPB1() {
-  var occupantEmail = 'replace_with_email@apollo.io';
+  var occupantEmail = 'replace_with_email@yourcompany.com';
   var occupantSlackId = 'U000000000'; // replace with Slack ID
   return reportUnbookedRoomUsage({
     room: 'PB1',
@@ -1340,7 +1330,7 @@ function reportUnbookedRoomPB1() {
 }
 
 function reportUnbookedRoomPB2() {
-  var occupantEmail = 'replace_with_email@apollo.io';
+  var occupantEmail = 'replace_with_email@yourcompany.com';
   var occupantSlackId = 'U000000000'; // replace with Slack ID
   return reportUnbookedRoomUsage({
     room: 'PB2',
@@ -1350,7 +1340,7 @@ function reportUnbookedRoomPB2() {
 }
 
 function reportUnbookedRoomPB3() {
-  var occupantEmail = 'replace_with_email@apollo.io';
+  var occupantEmail = 'replace_with_email@yourcompany.com';
   var occupantSlackId = 'U000000000'; // replace with Slack ID
   return reportUnbookedRoomUsage({
     room: 'PB3',
