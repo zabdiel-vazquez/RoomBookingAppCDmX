@@ -11,23 +11,25 @@
 //////////////////////
 
 const ROOM_CALENDARS = {
-  A:   'c_18889q127018oil7n02qvmoft5iue@resource.calendar.google.com', // Room A - Ajolote
-  B:   'c_1883ad9vmfh8ghfol6ns8kkf5bgfa@resource.calendar.google.com', // Room B - Balam
-  C:   'c_1886fv8a851baj3iit4idtqn4ag6k@resource.calendar.google.com', // Room C - Calupoh
-  D:   'c_188bb89qo6f88hn1kkugivigcsfd2@resource.calendar.google.com', // Room D - Xolo
+  A:   'c_18889q127018oil7n02qvmoft5iue@resource.calendar.google.com', // Room Ajolote
+  B:   'c_1883ad9vmfh8ghfol6ns8kkf5bgfa@resource.calendar.google.com', // Room B
+  C:   'c_1886fv8a851baj3iit4idtqn4ag6k@resource.calendar.google.com', // Room Balam
+  D:   'c_188bb89qo6f88hn1kkugivigcsfd2@resource.calendar.google.com', // Room Calupoh
+  E:   'c_1885btid5mpogg5gl176a8rscph3m@resource.calendar.google.com', // Room Xolo - 9th Floor
   PB1: 'c_1883fqhsm6floisrj0r0fcqmkclee@resource.calendar.google.com', // Phone Booth 1 - Cenzontle
   PB2: 'c_188a5bts7c3pagcdnugjotg5nk6u8@resource.calendar.google.com', // Phone Booth 2 - Tecolote
   PB3: 'c_188bnkchjldt2hhmjnvn6f56a2moi@resource.calendar.google.com'  // Phone Booth 3 - Quetzal
 };
 
 const ROOM_LABELS = {
-  A:   'Room A - Ajolote · 4 people',
-  B:   'Room B - Balam · 4 people',
-  C:   'Room C - Calupoh · 9 people',
-  D:   'Room D - Xolo · 10 people',
-  PB1: 'Phone Booth 1 - Cenzontle',
-  PB2: 'Phone Booth 2 - Tecolote',
-  PB3: 'Phone Booth 3 - Quetzal'
+  A:   'Room Ajolote · 4 people',
+  B:   'Room B · 4 people',
+  C:   'Room Balam · 9 people',
+  D:   'Room Calupoh · 10 people',
+  E:   'Room Xolo (9th Floor) · 30 people',
+  PB1: 'Phone Booth Cenzontle',
+  PB2: 'Phone Booth Tecolote',
+  PB3: 'Phone Booth Quetzal'
 };
 
 const CALENDAR_ID_TO_ROOM = Object.keys(ROOM_CALENDARS).reduce(function(map, key) {
@@ -35,7 +37,7 @@ const CALENDAR_ID_TO_ROOM = Object.keys(ROOM_CALENDARS).reduce(function(map, key
   return map;
 }, {});
 
-const WORK_START = 8;   // 08:00 local
+const WORK_START = 6;   // 06:00 local
 const WORK_END = 17;    // 17:00 local
 const SLOT_MIN = 30;    // minutes per grid cell
 const WEEK_DAYS = 5;    // Monday–Friday

@@ -24,10 +24,12 @@ this.RoomBotGlobals = this.RoomBotGlobals || {
     adminSlackId: 'U08L2CVG29W' // Zabdiel
   },
   OFFICE_HOURS: {
-    startHour: 8,
+    startHour: 6,
     endHour: 17
   },
   DEFAULT_SLACK_USER_OVERRIDES: {
+  'savvy@apollo.io': 'U020NN8Q1GU',
+  'juan.nieto@apollo.io': 'U09BNNPR32R',
   'erika.barrios@apollo.io': 'U08RNAQBK60',
   'alvaro.cabrera@apollo.io': 'U09G55MB3MX',
   'lupita.garcia@apollo.io': 'U092J6KJT6G',
@@ -500,13 +502,11 @@ function getEventParticipantsToNotify(event) {
     addParticipant(attendee);
   });
 
-  if (!participants.length) {
-    if (event.organizer) {
-      addParticipant(event.organizer);
-    }
-    if (event.creator) {
-      addParticipant(event.creator);
-    }
+  if (event.organizer) {
+    addParticipant(event.organizer);
+  }
+  if (event.creator) {
+    addParticipant(event.creator);
   }
 
   return participants;
@@ -535,6 +535,14 @@ function normalizeEventId(eventId) {
     return value + '@google.com';
   }
   return value;
+}
+
+function getBaseEventId(eventId) {
+  if (!eventId) return eventId;
+  var idStr = String(eventId);
+  // Check for recurrence suffix _YYYYMMDD[T...Z]
+  var match = idStr.match(/^(.*)_\d{8}(?:T\d{6}Z)?$/);
+  return match ? match[1] : idStr;
 }
 
 function buildEventIdVariants(eventId) {
@@ -846,12 +854,14 @@ function notifyRoomBookingConfirmation(roomKey, calendarId, eventId, organizerEm
 
   if (organizerEmailHint) {
     var key = organizerEmailHint.toLowerCase();
-    var alreadyIncluded = participants.some(function(p) { return p.email && p.email.toLowerCase() === key; });
-    if (!alreadyIncluded) {
-      participants.unshift({
-        email: organizerEmailHint,
-        displayName: organizerEmailHint
-      });
+    if (isNotifiableEmail(key)) {
+      var alreadyIncluded = participants.some(function(p) { return p.email && p.email.toLowerCase() === key; });
+      if (!alreadyIncluded) {
+        participants.unshift({
+          email: organizerEmailHint,
+          displayName: organizerEmailHint
+        });
+      }
     }
   }
 
@@ -860,7 +870,8 @@ function notifyRoomBookingConfirmation(roomKey, calendarId, eventId, organizerEm
   }
 
   if (!participants.length) {
-    console.log('No participants to notify for booking confirmation', event.id || summary);
+    console.log('No notifiable participants for booking confirmation', event.id || summary);
+    return false;
   }
 
   var tz = Session.getScriptTimeZone();
@@ -984,6 +995,7 @@ function processRecentRoomBookingsForRoom(roomKey, calendarId, updatedMinISO, no
   var pageToken = null;
   var timeMin = new Date(now.getTime() - 15 * 60 * 1000).toISOString();
   var timeMax = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000).toISOString();
+  var processedBaseIds = {};
 
   do {
     var response = Calendar.Events.list(calendarId, {
@@ -1056,6 +1068,16 @@ function processRecentRoomBookingsForRoom(roomKey, calendarId, updatedMinISO, no
         console.log('Skipping already-notified event', canonicalEventId);
         return;
       }
+
+      // Deduplicate recurring event instances in the same batch
+      var baseId = getBaseEventId(canonicalEventId);
+      if (processedBaseIds[baseId]) {
+        console.log('Skipping recurrence duplicate for base ID', baseId, 'instance', canonicalEventId);
+        // Mark as sent so we don't process it again in future runs if updatedMin overlaps
+        markBookingConfirmationSent(canonicalEventId, startValue, event.updated || null);
+        return;
+      }
+      processedBaseIds[baseId] = true;
 
       console.log('Sending confirmation for event', canonicalEventId, 'summary:', event.summary || '(no title)', 'start:', startValue, 'updated:', event.updated || '(no update)');
       var delivered = notifyRoomBookingConfirmation(roomKey, calendarId, event.id, null, event);
@@ -1388,9 +1410,12 @@ function reportUnbookedRoomPB3() {
       var calendarId = ROOM_CALENDARS[roomKey];
       var roomLabel = ROOM_LABELS[roomKey] || roomKey;
       
-      // Strip capacity info from label
+      // Extract capacity info
+      var roomCapacity = '';
       if (roomLabel.indexOf(' · ') > -1) {
-        roomLabel = roomLabel.split(' · ')[0];
+        var parts = roomLabel.split(' · ');
+        roomLabel = parts[0];
+        roomCapacity = parts[1];
       }
       
       try {
@@ -1453,7 +1478,7 @@ function reportUnbookedRoomPB3() {
               fields: [
                 {
                   type: 'mrkdwn',
-                  text: '*Room:*\n' + roomLabel
+                  text: '*Room:*\n' + roomLabel + (roomCapacity ? '\n_(' + roomCapacity + ')_' : '')
                 },
                 {
                   type: 'mrkdwn',
@@ -1589,9 +1614,12 @@ function reportUnbookedRoomPB3() {
       var calendarId = ROOM_CALENDARS[roomKey];
       var roomLabel = ROOM_LABELS[roomKey] || roomKey;
       
-      // Strip capacity info
+      // Extract capacity info
+      var roomCapacity = '';
       if (roomLabel.indexOf(' · ') > -1) {
-        roomLabel = roomLabel.split(' · ')[0];
+        var parts = roomLabel.split(' · ');
+        roomLabel = parts[0];
+        roomCapacity = parts[1];
       }
       
       try {
@@ -1644,6 +1672,40 @@ function reportUnbookedRoomPB3() {
           
           // Build Slack message
           var messageText = '⏰ Room booking ending in ' + minutesBefore + ' minutes!';
+
+          // Check for next booking in the same room
+          var nextEvent = null;
+          var minStartDiff = Infinity;
+          
+          events.items.forEach(function(candidate) {
+            if (candidate.id === event.id) return;
+            var cStart = new Date(candidate.start.dateTime || candidate.start.date);
+            if (cStart < endTime) return; // Overlaps or starts before current ends
+            
+            var diff = cStart.getTime() - endTime.getTime();
+            if (diff >= 0 && diff < minStartDiff) {
+              minStartDiff = diff;
+              nextEvent = candidate;
+            }
+          });
+
+          var trafficContext = '🏁 Please wrap up and prepare the room for the next booking';
+          if (nextEvent) {
+            var gapMinutes = Math.round(minStartDiff / 60000);
+            var nextTimeStr = Utilities.formatDate(new Date(nextEvent.start.dateTime || nextEvent.start.date), tz, 'HH:mm');
+            var nextSummary = (nextEvent.summary && nextEvent.summary.trim()) ? nextEvent.summary.trim() : 'Another Meeting';
+
+            if (gapMinutes <= 15) {
+               // Back-to-back: high urgency
+               trafficContext = '⚠️ *Next up:* "' + nextSummary + '" starts at ' + nextTimeStr + '. Please wrap up!';
+            } else {
+               // Gap exists: moderate urgency / info
+               trafficContext = '✅ Room is free until ' + nextTimeStr + '.';
+            }
+          } else {
+             // No next event found in the fetched window (2 hours)
+             trafficContext = '✅ Room is free for at least the next 2 hours.';
+          }
           
           var blocks = [
             {
@@ -1659,7 +1721,7 @@ function reportUnbookedRoomPB3() {
               fields: [
                 {
                   type: 'mrkdwn',
-                  text: '*Room:*\n' + roomLabel
+                  text: '*Room:*\n' + roomLabel + (roomCapacity ? '\n_(' + roomCapacity + ')_' : '')
                 },
                 {
                   type: 'mrkdwn',
@@ -1680,7 +1742,7 @@ function reportUnbookedRoomPB3() {
               elements: [
                 {
                   type: 'mrkdwn',
-                  text: '🏁 Please wrap up and prepare the room for the next booking'
+                  text: trafficContext
                 }
               ]
             }
@@ -1766,6 +1828,247 @@ function reportUnbookedRoomPB3() {
   }
   
   /**
+   * Main function: Send a morning digest of the day's room bookings to each user.
+   * Set this to run every day at 8:00 AM.
+   * @param {string} [targetEmail] - Optional. If provided, sends digest ONLY to this email (for testing).
+   */
+  function sendDailyDigest(targetEmail) {
+    var isTestRun = (targetEmail && typeof targetEmail === 'string');
+    var now = new Date();
+    // Only run on weekdays (Mon=1 ... Fri=5), unless it's a test run
+    var day = now.getDay(); 
+    if (!isTestRun && (day === 0 || day === 6)) {
+      console.log('Skipping daily digest on weekend.');
+      return;
+    }
+
+    var tz = Session.getScriptTimeZone();
+    // Define "Today" from 00:00 to 23:59
+    var startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
+    var endOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
+
+    console.log('Generating daily digest for', Utilities.formatDate(startOfDay, tz, 'yyyy-MM-dd') + (isTestRun ? ' (Target: ' + targetEmail + ')' : ''));
+
+    if (typeof ROOM_CALENDARS === 'undefined') {
+      console.error('ROOM_CALENDARS is undefined. Make sure App.js is loaded.');
+      return;
+    }
+    if (isTestRun) {
+      console.log('Scanning calendars: ' + Object.keys(ROOM_CALENDARS).join(', '));
+    }
+
+    var userSchedules = {}; // { 'email': [ { start, end, summary, roomLabel } ] }
+
+    // 1. Collect all events from all rooms
+    for (var roomKey in ROOM_CALENDARS) {
+      if (!ROOM_CALENDARS.hasOwnProperty(roomKey)) continue;
+
+      var calendarId = ROOM_CALENDARS[roomKey];
+      var roomLabelRaw = ROOM_LABELS[roomKey] || roomKey;
+      var roomName = roomLabelRaw;
+      var roomCapacity = '';
+      if (roomLabelRaw.indexOf(' · ') > -1) {
+        var parts = roomLabelRaw.split(' · ');
+        roomName = parts[0];
+        roomCapacity = parts[1];
+      }
+
+      try {
+        var events = Calendar.Events.list(calendarId, {
+          timeMin: startOfDay.toISOString(),
+          timeMax: endOfDay.toISOString(),
+          singleEvents: true,
+          orderBy: 'startTime',
+          maxResults: 50,
+          fields: 'items(id,summary,start,end,organizer,creator,attendees(email,displayName,responseStatus,resource,optional),attendeesOmitted,description)',
+          alwaysIncludeEmail: true
+        });
+
+        if (!events.items) continue;
+        
+        if (isTestRun && events.items.length > 0) {
+           console.log('Found ' + events.items.length + ' events in ' + roomKey);
+        }
+
+        events.items.forEach(function(event) {
+          // Skip cancelled
+          if (event.status === 'cancelled') return;
+
+          // Identify who should be notified about this event
+          var participants = getEventParticipantsToNotify(event);
+
+          if (isTestRun) {
+             var isTarget = participants.some(function(p) { return p.email.toLowerCase() === targetEmail.toLowerCase(); });
+             if (!isTarget) {
+               // Debug why
+               var rawAttendees = (event.attendees || []).map(function(a) { return a.email; }).join(', ');
+               if (rawAttendees.toLowerCase().indexOf(targetEmail.toLowerCase()) > -1) {
+                 console.log('Target user found in attendees but not in notification list for "' + event.summary + '". Check SLACK_USER_OVERRIDES or response status.');
+               }
+             } else {
+               console.log('Target user identified as participant for: ' + event.summary);
+             }
+          }
+
+          if (participants.length) {
+            var startTime = new Date(event.start.dateTime || event.start.date);
+            var endTime = new Date(event.end.dateTime || event.end.date);
+            var summary = (event.summary && event.summary.trim()) ? event.summary.trim() : 'Room Booking';
+
+            var eventData = {
+              start: startTime,
+              end: endTime,
+              summary: summary,
+              roomName: roomName,
+              roomCapacity: roomCapacity,
+              eventId: event.id,
+              calendarId: calendarId
+            };
+
+            participants.forEach(function(p) {
+              // If in test run mode, skip users that don't match targetEmail
+              if (isTestRun && p.email.toLowerCase() !== targetEmail.toLowerCase()) {
+                return;
+              }
+
+              if (!userSchedules[p.email]) {
+                userSchedules[p.email] = {
+                  displayName: p.displayName,
+                  events: []
+                };
+              }
+              // Avoid duplicates if user is in multiple rooms for same event (rare but possible) or logic overlap
+              var exists = userSchedules[p.email].events.some(function(e) { 
+                return e.eventId === event.id && e.roomName === roomName; 
+              });
+              if (!exists) {
+                userSchedules[p.email].events.push(eventData);
+              }
+            });
+          }
+        });
+      } catch (e) {
+        console.error('Error fetching digest events for room', roomKey, e.toString());
+      }
+    }
+    
+    // Inject sample data if test run and no events found
+    if (isTestRun && (!userSchedules[targetEmail] || userSchedules[targetEmail].events.length === 0)) {
+      console.log('No real events found for ' + targetEmail + '. Injecting sample data for preview.');
+      var sampleStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 10, 0, 0);
+      var sampleEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 10, 30, 0);
+      
+      // Ensure key exists
+      if (!userSchedules[targetEmail]) {
+        userSchedules[targetEmail] = {
+           displayName: targetEmail.split('@')[0], // Fallback name
+           events: []
+        };
+      }
+      
+      userSchedules[targetEmail].events.push({
+          start: sampleStart,
+          end: sampleEnd,
+          summary: 'Sample Team Standup (Preview)',
+          roomName: 'Room A - Ajolote',
+          roomCapacity: '4 people',
+          eventId: 'sample-preview-id',
+          calendarId: 'sample-cal-id'
+      });
+    }
+
+    // 2. Send Digest DMs
+    var digestsSent = 0;
+    
+    Object.keys(userSchedules).forEach(function(email) {
+      // Redundant check for safety, though filtering happened during collection
+      if (isTestRun && email.toLowerCase() !== targetEmail.toLowerCase()) return;
+
+      var userData = userSchedules[email];
+      if (!userData.events.length) return;
+
+      // Sort by start time
+      userData.events.sort(function(a, b) {
+        return a.start.getTime() - b.start.getTime();
+      });
+
+      var firstName = userData.displayName ? userData.displayName.split(' ')[0] : 'there';
+      var eventCount = userData.events.length;
+      
+      var blocks = [
+        {
+          type: 'header',
+          text: {
+            type: 'plain_text',
+            text: '☀️ Good Morning, ' + firstName + '!',
+            emoji: true
+          }
+        },
+        {
+          type: 'section',
+          text: {
+            type: 'mrkdwn',
+            text: 'You have *' + eventCount + ' room booking' + (eventCount === 1 ? '' : 's') + '* scheduled for today:'
+          }
+        },
+        {
+          type: 'divider'
+        }
+      ];
+
+      userData.events.forEach(function(ev) {
+        var timeStr = Utilities.formatDate(ev.start, tz, 'HH:mm') + ' - ' + Utilities.formatDate(ev.end, tz, 'HH:mm');
+        var capacityStr = ev.roomCapacity ? ' _(' + ev.roomCapacity + ')_' : '';
+        
+        blocks.push({
+          type: 'section',
+          fields: [
+            {
+              type: 'mrkdwn',
+              text: '*Time:* ' + timeStr + '\n*Room:* ' + ev.roomName + capacityStr
+            },
+            {
+              type: 'mrkdwn',
+              text: '*Event:*\n' + ev.summary
+            }
+          ]
+        });
+      });
+
+      // Send the DM
+      var dmChannelId = getSlackDmChannelId(email);
+      if (dmChannelId) {
+        console.log('Sending digest payload to ' + email + ':', JSON.stringify(blocks));
+        var result = sendSlackMessage(dmChannelId, '☀️ Your Room Bookings for Today', blocks);
+        if (result && result.ok) {
+          digestsSent++;
+          console.log('Sent daily digest to', email);
+        } else {
+          console.error('Failed to send daily digest to', email);
+        }
+      } else {
+        console.log('Skipping digest for', email, '- no DM channel available.');
+      }
+    });
+
+    console.log('Daily digest run complete. Sent to', digestsSent, 'users.');
+    if (!isTestRun) {
+      logAdminActivity('☀️ Bot sent *Daily Digest* to ' + digestsSent + ' users.');
+    } else {
+      console.log('Test digest run complete.');
+    }
+  }
+
+  /**
+   * Helper to manually test the daily digest for a specific user immediately.
+   */
+  function debugSendDailyDigestToMe() {
+    var adminEmail = Session.getActiveUser().getEmail();
+    console.log('Force running digest logic for ' + adminEmail + '...');
+    sendDailyDigest(adminEmail); 
+  }
+
+  /**
    * Test function - send a test message to verify Slack integration
    */
   function testSlackIntegration() {
@@ -1803,7 +2106,8 @@ function reportUnbookedRoomPB3() {
       var handler = trigger.getHandlerFunction();
       if (handler === 'remindUpcomingBookings' ||
           handler === 'remindEndingBookings' ||
-          handler === 'notifyRecentRoomBookings') {
+          handler === 'notifyRecentRoomBookings' ||
+          handler === 'sendDailyDigest') {
         ScriptApp.deleteTrigger(trigger);
       }
     });
@@ -1823,14 +2127,223 @@ function reportUnbookedRoomPB3() {
       .timeBased()
       .everyMinutes(1)
       .create();
+      
+    // Daily Digest at 8:00 AM
+    ScriptApp.newTrigger('sendDailyDigest')
+      .timeBased()
+      .atHour(8)
+      .everyDays(1)
+      .inTimezone(Session.getScriptTimeZone())
+      .create();
     
     console.log('✅ Triggers created successfully!');
     console.log('• remindUpcomingBookings: Every 1 minute');
     console.log('• remindEndingBookings: Every 1 minute');
     console.log('• notifyRecentRoomBookings: Every 1 minute');
+    console.log('• sendDailyDigest: Daily at 8:00 AM');
     
     return { 
       success: true, 
-      message: 'Triggers created. Reminders will run every minute.' 
+      message: 'Triggers created. Reminders every minute, Digest at 8:00 AM.' 
     };
   }
+
+/**
+ * Updates the App Home for a specific user.
+ * Called when the 'app_home_opened' event is received.
+ * @param {string} userId - Slack User ID
+ */
+function updateSlackAppHome(userId) {
+  if (!userId) return;
+  
+  var token = PropertiesService.getScriptProperties().getProperty('SLACK_BOT_TOKEN');
+  if (!token) {
+    console.error('SLACK_BOT_TOKEN missing for updateSlackAppHome');
+    return;
+  }
+
+  var webAppUrl = '';
+  // Try to use the config URL first as it's likely the stable published one
+  if (SLACK_CONFIG && SLACK_CONFIG.bookingAppUrl) {
+    webAppUrl = SLACK_CONFIG.bookingAppUrl;
+  } else {
+    // Fallback to dynamic resolution if config is missing
+    try {
+      if (typeof getDashboardUrl === 'function') {
+        webAppUrl = getDashboardUrl();
+      } else if (ScriptApp.getService().getUrl()) {
+        webAppUrl = ScriptApp.getService().getUrl();
+      }
+    } catch (e) {
+      console.warn('Could not resolve web app URL for App Home:', e);
+    }
+  }
+  
+  if (!webAppUrl) {
+    console.warn('No Web App URL found. App Home buttons may be broken.');
+    webAppUrl = 'https://script.google.com'; // Safe fallback to avoid empty URL error
+  }
+  
+  var dashboardUrl = webAppUrl + (webAppUrl.indexOf('?') > -1 ? '&' : '?') + 'page=dashboard';
+
+  var viewPayload = {
+    type: 'home',
+    blocks: [
+      {
+        type: 'header',
+        text: {
+          type: 'plain_text',
+          text: 'Apollo CDMX · Room Booking Command Center',
+          emoji: true
+        }
+      },
+      {
+        type: 'section',
+        text: {
+          type: 'mrkdwn',
+          text: '*Plan, book, and manage every room without leaving Slack.*\nPreview availability, launch the planner, or jump into the dashboard from this Home tab.'
+        },
+        accessory: {
+          type: 'image',
+          image_url: 'https://api.slack.com/img/blocks/bkb_template_images/notifications.png',
+          alt_text: 'Room scheduling'
+        }
+      },
+      {
+        type: 'context',
+        elements: [
+          {
+            type: 'mrkdwn',
+            text: 'Each teammate sees this view privately. Open the Home tab anytime to refresh suggestions.'
+          }
+        ]
+      },
+      {
+        type: 'divider'
+      },
+      {
+        type: 'section',
+        text: {
+          type: 'mrkdwn',
+          text: '*Pick what you need:*'
+        },
+        fields: [
+          {
+            type: 'mrkdwn',
+            text: '*📅 Room planner*\nDrag-and-drop bookings on the weekly grid.'
+          },
+          {
+            type: 'mrkdwn',
+            text: '*📊 Live dashboard*\nGlance at what\'s free right now across rooms.'
+          },
+          {
+            type: 'mrkdwn',
+            text: '*⚡ Auto reminders*\nWe DM you before meetings start or end.'
+          },
+          {
+            type: 'mrkdwn',
+            text: '*🧭 Overflow options*\nRoute to WeWork rooms when HQ is full.'
+          }
+        ]
+      },
+      {
+        type: 'actions',
+        elements: [
+          {
+            type: 'button',
+            text: {
+              type: 'plain_text',
+              text: 'Open planner',
+              emoji: true
+            },
+            style: 'primary',
+            url: webAppUrl,
+            action_id: 'open_planner'
+          },
+          {
+            type: 'button',
+            text: {
+              type: 'plain_text',
+              text: 'View dashboard',
+              emoji: true
+            },
+            url: dashboardUrl,
+            action_id: 'open_dashboard'
+          },
+          {
+            type: 'button',
+            text: {
+              type: 'plain_text',
+              text: 'Book overflow',
+              emoji: true
+            },
+            url: 'https://members.wework.com/workplaceone/content2/bookings/rooms',
+            action_id: 'open_overflow'
+          }
+        ]
+      },
+      {
+        type: 'divider'
+      },
+      {
+        type: 'section',
+        text: {
+          type: 'mrkdwn',
+          text: '*How it works*\n• Choose *Open planner* to reserve a room in seconds.\n• We\'ll DM reminders before meetings start and end.\n• Need visibility? Tap *View dashboard* for the live grid.\n• If HQ is packed, jump to WeWork overflow rooms.'
+        }
+      },
+      {
+        type: 'context',
+        elements: [
+          {
+            type: 'mrkdwn',
+            text: ':bulb: Tip: revisit this Home tab whenever you need a fresh snapshot—Slack fires an `app_home_opened` event every time you land here.'
+          }
+        ]
+      },
+      {
+        type: 'divider'
+      },
+      {
+        type: 'section',
+        text: {
+          type: 'mrkdwn',
+          text: '*Need help or want a new room added?*\nPing <@' + (SLACK_CONFIG && SLACK_CONFIG.adminSlackId ? SLACK_CONFIG.adminSlackId : 'U08L2CVG29W') + '> or drop feedback in #cdmx-office.'
+        }
+      }
+    ]
+  };
+
+  var options = {
+    method: 'post',
+    contentType: 'application/json',
+    headers: {
+      'Authorization': 'Bearer ' + token
+    },
+    payload: JSON.stringify({
+      user_id: userId,
+      view: viewPayload
+    }),
+    muteHttpExceptions: true
+  };
+
+  try {
+    var response = UrlFetchApp.fetch('https://slack.com/api/views.publish', options);
+    var result = JSON.parse(response.getContentText());
+    if (!result.ok) {
+      console.error('Failed to update Slack App Home:', result.error, JSON.stringify(result));
+    } else {
+      console.log('Updated App Home for user', userId);
+    }
+  } catch (error) {
+    console.error('Error calling views.publish:', error.toString());
+  }
+}
+
+/**
+ * Helper to manually refresh the App Home for the workspace admin.
+ * Run this from Apps Script to validate the layout without waiting for an event.
+ */
+function refreshAppHomeForZab() {
+  updateSlackAppHome('U08L2CVG29W');
+}
